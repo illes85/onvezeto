@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>2D Autonomous Car Simulator</title>
+<style>
+  canvas { background: #ddd; display: block; margin: 0 auto; }
+</style>
+</head>
+<body>
+<canvas id="game" width="800" height="600"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const keys = {};
+const car = {
+  x: 400, y: 300,
+  angle: 0,
+  speed: 0,
+  maxSpeed: 2,
+  width: 20,
+  height: 40
+};
+
+const walls = [
+  {x:100,y:100,w:600,h:20},
+  {x:100,y:480,w:600,h:20},
+  {x:100,y:120,w:20,h:360},
+  {x:680,y:120,w:20,h:360},
+  {x:250,y:250,w:300,h:20},
+  {x:250,y:350,w:300,h:20}
+];
+
+const sensors = 5;
+const sensorLength = 100;
+
+function drawCar() {
+  ctx.save();
+  ctx.translate(car.x, car.y);
+  ctx.rotate(car.angle);
+  ctx.fillStyle = 'blue';
+  ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height);
+  ctx.restore();
+}
+
+function drawWalls() {
+  ctx.fillStyle = 'black';
+  for (let wall of walls) {
+    ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
+  }
+}
+
+function castSensors() {
+  const readings = [];
+  ctx.strokeStyle = 'red';
+  for (let i = 0; i < sensors; i++) {
+    const offset = (i - Math.floor(sensors/2)) * Math.PI/8;
+    const angle = car.angle + offset;
+    let dist = sensorLength;
+    for (let d = 0; d < sensorLength; d+=2) {
+      const sx = car.x + Math.sin(angle) * d;
+      const sy = car.y - Math.cos(angle) * d;
+      if (walls.some(w => sx >= w.x && sx <= w.x+w.w && sy >= w.y && sy <= w.y+w.h)) {
+        dist = d;
+        break;
+      }
+    }
+    readings.push(dist);
+    ctx.beginPath();
+    ctx.moveTo(car.x, car.y);
+    ctx.lineTo(car.x + Math.sin(angle)*dist, car.y - Math.cos(angle)*dist);
+    ctx.stroke();
+  }
+  return readings;
+}
+
+function update() {
+  if (keys['ArrowUp']) car.speed = Math.min(car.speed+0.05, car.maxSpeed);
+  else if (keys['ArrowDown']) car.speed = Math.max(car.speed-0.05, -car.maxSpeed);
+  else car.speed *= 0.98;
+
+  if (keys['ArrowLeft']) car.angle -= 0.03;
+  if (keys['ArrowRight']) car.angle += 0.03;
+
+  const nextX = car.x + Math.sin(car.angle) * car.speed;
+  const nextY = car.y - Math.cos(car.angle) * car.speed;
+
+  if (!walls.some(w => nextX > w.x && nextX < w.x+w.w && nextY > w.y && nextY < w.y+w.h)) {
+    car.x = nextX;
+    car.y = nextY;
+  } else {
+    car.speed = 0;
+  }
+}
+
+function loop() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawWalls();
+  update();
+  drawCar();
+  const sensorData = castSensors();
+  // 🔗 Hook: itt hívd meg az AI algoritmusod sensorData-val
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
+
+loop();
+</script>
+</body>
+</html>
